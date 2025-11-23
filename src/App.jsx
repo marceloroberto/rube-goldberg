@@ -9,13 +9,13 @@ import {
 } from 'lucide-react';
 
 /**
- * DESAFIO RUBE GOLDBERG DIGITAL - Versão 12.1 (Correção de Syntax Errors)
+ * DESAFIO RUBE GOLDBERG DIGITAL - Versão 12.3 (Correção Final de Syntax Errors)
  */
 
 // --- CONFIGURAÇÕES E CONSTANTES ---
 
 const THEMES = {
-  lab: { bg: '#f0f4f8', grid: '#cbd5e1', text: '#1e293b', accent: '#3b82f6', ground: '#94a3b8' },
+  lab: { bg: '#f0f4f8', grid: '#cbd5e1', text: '#1e293b', accent: '#3b82f6', ground: '#64748b' },
   blueprint: { bg: '#1e3a8a', grid: '#3b82f6', text: '#bfdbfe', accent: '#60a5fa', ground: '#172554' },
   dark: { bg: '#0f172a', grid: '#334155', text: '#e2e8f0', accent: '#10b981', ground: '#334155' }
 };
@@ -35,7 +35,7 @@ const App = () => {
   const engineRef = useRef(null);
   const renderRef = useRef(null);
   const runnerRef = useRef(null);
-  const mouseConstraintRef = useRef(null); // CORRIGIDO: removido 'qh'
+  const mouseConstraintRef = useRef(null);
   
   // --- ESTADO GLOBAL ---
   const [isPlaying, setIsPlaying] = useState(false);
@@ -67,11 +67,11 @@ const App = () => {
   const trailsRef = useRef([]); 
   const isPanning = useRef(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
-  const snapEnabledRef = useRef(snapEnabled); // CORRIGIDO: removido 'qh'
+  const snapEnabledRef = useRef(snapEnabled);
 
   // --- INICIALIZAÇÃO ---
   useEffect(() => {
-    const { Engine, Render, Runner, MouseConstraint, Mouse, World, Bodies, Events, Composite, Vector, Body, Constraint } = Matter; // CORRIGIDO: removido 'VP'
+    const { Engine, Render, Runner, MouseConstraint, Mouse, World, Bodies, Events, Composite, Vector, Body, Constraint } = Matter;
 
     // 1. Setup Engine
     const engine = Engine.create();
@@ -93,14 +93,21 @@ const App = () => {
     });
     renderRef.current = render;
 
-    // 3. Paredes e Limites
-    const width = 4000; 
-    const height = 3000;
+    // 3. Paredes e Limites (CHÃO FIXO)
+    const viewWidth = sceneRef.current.clientWidth;
+    const viewHeight = sceneRef.current.clientHeight;
+    const wallThickness = 100;
+    const worldWidth = 10000; 
+
     const walls = [
-       Bodies.rectangle(0, height/2, 100, height, { isStatic: true, label: 'Wall', render: { visible: false } }), 
-       Bodies.rectangle(width, height/2, 100, height, { isStatic: true, label: 'Wall', render: { visible: false } }), 
-       Bodies.rectangle(width/2, height, width, 100, { isStatic: true, label: 'Ground', render: { fillStyle: THEMES[currentTheme].ground } }), 
-       Bodies.rectangle(width/2, -1000, width, 100, { isStatic: true, label: 'Ceiling', render: { visible: false } }) 
+       Bodies.rectangle(viewWidth / 2, viewHeight + (wallThickness / 2), worldWidth, wallThickness, { 
+           isStatic: true, 
+           label: 'Ground', 
+           render: { fillStyle: THEMES[currentTheme].ground } 
+       }),
+       Bodies.rectangle(-worldWidth/2, viewHeight/2, wallThickness, viewHeight * 5, { isStatic: true, label: 'Wall', render: { visible: false } }), 
+       Bodies.rectangle(worldWidth/2, viewHeight/2, wallThickness, viewHeight * 5, { isStatic: true, label: 'Wall', render: { visible: false } }), 
+       Bodies.rectangle(viewWidth/2, -5000, worldWidth, wallThickness, { isStatic: true, label: 'Ceiling', render: { visible: false } }) 
     ];
     World.add(engine.world, walls);
 
@@ -228,7 +235,7 @@ const App = () => {
 
     Events.on(engine, 'beforeUpdate', () => {
         const bodies = Composite.allBodies(engine.world);
-        const constraints = Composite.allConstraints(engine.world); // CORRIGIDO: removido 'ZS'
+        const constraints = Composite.allConstraints(engine.world);
 
         if (showTrailsRef.current && isPlayingRef.current && engine.timing.timestamp % 5 === 0) {
              bodies.forEach(b => { if (b.label === 'Ball') trailsRef.current.push({ x: b.position.x, y: b.position.y }); });
@@ -393,8 +400,8 @@ const App = () => {
     if (isPlaying && save) return; 
     const { World, Bodies, Body, Composite, Constraint } = Matter;
     const render = renderRef.current;
-    const centerX = render ? (render.bounds.min.x + render.bounds.max.x) / 2 : 400; // CORRIGIDO: removido 'TX'
-    const centerY = render ? (render.bounds.min.y + render.bounds.max.y) / 2 : 300;
+    const centerX = render ? (render.bounds.min.x + render.bounds.max.x) / 2 : 400;
+    const centerY = render ? (render.bounds.min.y + render.bounds.max.y) / 2 : 300; // CORRIGIDO AQUI
     const x = props.x !== undefined ? props.x : centerX;
     const y = props.y !== undefined ? props.y : centerY;
     const angle = props.angle || 0;
@@ -594,7 +601,7 @@ const App = () => {
       const body = Matter.Composite.allBodies(engineRef.current.world).find(b => b.id === selectedBodyId);
       if(body) setClipboard({ type: body.plugin.type, ...body.plugin, angle: body.angle });
   };
-  const pasteBody = () => { // CORRIGIDO: removido 'KZ'
+  const pasteBody = () => {
       if(!clipboard) return;
       addBody(clipboard.type, { x: clipboard.x + 20, y: clipboard.y + 20, angle: clipboard.angle, scale: clipboard.scale, material: clipboard.material });
   };
