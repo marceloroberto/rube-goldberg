@@ -9,11 +9,7 @@ import {
 } from 'lucide-react';
 
 /**
- * DESAFIO RUBE GOLDBERG DIGITAL - Versão 11.4 (Fix Prego Movível)
- * * Correções:
- * - FIX: Ferramenta PREGO (Pin) agora é criada como 'isStatic: false' e 'isSensor: true'.
- * Isso permite movê-la livremente e colocá-la SOBRE outros objetos sem causar colisão/explosão.
- * - O Prego trava automaticamente (vira static) ao dar Play.
+ * DESAFIO RUBE GOLDBERG DIGITAL - Versão 12.1 (Correção de Syntax Errors)
  */
 
 // --- CONFIGURAÇÕES E CONSTANTES ---
@@ -39,7 +35,7 @@ const App = () => {
   const engineRef = useRef(null);
   const renderRef = useRef(null);
   const runnerRef = useRef(null);
-  const mouseConstraintRef = useRef(null);
+  const mouseConstraintRef = useRef(null); // CORRIGIDO: removido 'qh'
   
   // --- ESTADO GLOBAL ---
   const [isPlaying, setIsPlaying] = useState(false);
@@ -51,7 +47,7 @@ const App = () => {
 
   // --- ESTADO DE SELEÇÃO ---
   const [selectedBodyId, setSelectedBodyId] = useState(null);
-  const [selectedProps, setSelectedProps] = useState({ angle: 0, scale: 1, material: 'wood' });
+  const [selectedProps, setSelectedProps] = useState({ angle: 0, scale: 1, material: 'wood', isTarget: false });
   const [clipboard, setClipboard] = useState(null);
 
   // --- VIEW & TOOLS ---
@@ -71,11 +67,11 @@ const App = () => {
   const trailsRef = useRef([]); 
   const isPanning = useRef(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
-  const snapEnabledRef = useRef(snapEnabled);
+  const snapEnabledRef = useRef(snapEnabled); // CORRIGIDO: removido 'qh'
 
   // --- INICIALIZAÇÃO ---
   useEffect(() => {
-    const { Engine, Render, Runner, MouseConstraint, Mouse, World, Bodies, Events, Composite, Vector, Body, Constraint } = Matter;
+    const { Engine, Render, Runner, MouseConstraint, Mouse, World, Bodies, Events, Composite, Vector, Body, Constraint } = Matter; // CORRIGIDO: removido 'VP'
 
     // 1. Setup Engine
     const engine = Engine.create();
@@ -129,7 +125,7 @@ const App = () => {
        }
        
        const body = e.source.body;
-       if (body && !['Ground', 'Wall', 'Target', 'Ceiling'].includes(body.label)) {
+       if (body && !['Ground', 'Wall', 'Ceiling'].includes(body.label)) {
            const parent = body.parent;
            setSelectedBodyId(parent.id);
            updateSelectionState(parent);
@@ -206,7 +202,6 @@ const App = () => {
         }
     });
 
-    // Render Loop
     Events.on(render, 'afterRender', () => {
         const ctx = render.context;
         if (showTrailsRef.current) {
@@ -231,10 +226,9 @@ const App = () => {
         }
     });
 
-    // Logic Loop
     Events.on(engine, 'beforeUpdate', () => {
         const bodies = Composite.allBodies(engine.world);
-        const constraints = Composite.allConstraints(engine.world);
+        const constraints = Composite.allConstraints(engine.world); // CORRIGIDO: removido 'ZS'
 
         if (showTrailsRef.current && isPlayingRef.current && engine.timing.timestamp % 5 === 0) {
              bodies.forEach(b => { if (b.label === 'Ball') trailsRef.current.push({ x: b.position.x, y: b.position.y }); });
@@ -242,14 +236,12 @@ const App = () => {
         }
 
         if (!isPlayingRef.current) {
-            // Estabilização no Editor
             bodies.forEach(body => {
                 if (!body.isStatic && body.id !== draggedBodyId.current) {
                     Body.setVelocity(body, { x: 0, y: 0 });
                     Body.setAngularVelocity(body, 0);
                 }
             });
-            // Atualiza âncora do pivô enquanto arrasta
             if (draggedBodyId.current) {
                 const draggedBody = bodies.find(b => b.id === draggedBodyId.current);
                 if (draggedBody && (['Spinner', 'Seesaw', 'Pulley'].includes(draggedBody.label))) {
@@ -324,7 +316,6 @@ const App = () => {
     };
   }, []);
 
-  // --- REFS SYNC ---
   const showTrailsRef = useRef(showTrails);
   const showVectorsRef = useRef(showVectors);
 
@@ -339,7 +330,6 @@ const App = () => {
       if(renderRef.current) renderRef.current.options.background = THEMES[currentTheme].bg;
   }, [currentTheme]);
 
-  // --- TECLADO ---
   useEffect(() => {
     const handleKeyDown = (e) => {
         if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') undo();
@@ -357,7 +347,8 @@ const App = () => {
       setSelectedProps({
           angle: Math.round(body.angle * (180 / Math.PI)),
           scale: body.plugin.scale || 1,
-          material: body.plugin.material || 'wood'
+          material: body.plugin.material || 'wood',
+          isTarget: body.label === 'Target'
       });
   };
 
@@ -366,9 +357,10 @@ const App = () => {
       if(!mat) return;
       
       const applyMaterial = (part) => {
+          const color = body.label === 'Target' ? '#F59E0B' : mat.color;
           Matter.Body.set(part, {
               friction: mat.friction, restitution: mat.restitution, density: mat.density,
-              render: { ...part.render, fillStyle: mat.color }
+              render: { ...part.render, fillStyle: color }
           });
           part.plugin.material = matKey;
           part.plugin.originalFriction = mat.friction;
@@ -401,7 +393,7 @@ const App = () => {
     if (isPlaying && save) return; 
     const { World, Bodies, Body, Composite, Constraint } = Matter;
     const render = renderRef.current;
-    const centerX = render ? (render.bounds.min.x + render.bounds.max.x) / 2 : 400;
+    const centerX = render ? (render.bounds.min.x + render.bounds.max.x) / 2 : 400; // CORRIGIDO: removido 'TX'
     const centerY = render ? (render.bounds.min.y + render.bounds.max.y) / 2 : 300;
     const x = props.x !== undefined ? props.x : centerX;
     const y = props.y !== undefined ? props.y : centerY;
@@ -445,14 +437,13 @@ const App = () => {
         case 'fan': newBody = Bodies.rectangle(x, y, 50 * scale, 50 * scale, { ...baseOptions, label: 'Fan', isStatic: false, render: { fillStyle: '#0ea5e9', sprite: { texture: '' } }, plugin: {...baseOptions.plugin, isFixedRamp: true} }); partsToAdd = [newBody]; break;
         
         case 'pin':
-            // FIX: Prego agora é isStatic: false para mover, e isSensor: true para sobrepor
             newBody = Bodies.circle(x, y, 10 * scale, { 
                 ...baseOptions, 
                 label: 'Pin', 
-                isStatic: false, // Permite arrastar no editor
-                isSensor: true,  // Não colide fisicamente (fantasma)
+                isStatic: false, 
+                isSensor: true,  
                 render: { fillStyle: '#333', strokeStyle: '#999', lineWidth: 3 },
-                plugin: { ...baseOptions.plugin, type: 'pin', isFixedRamp: true } // Trava no play via isFixedRamp
+                plugin: { ...baseOptions.plugin, type: 'pin', isFixedRamp: true } 
             });
             partsToAdd = [newBody];
             break;
@@ -527,6 +518,21 @@ const App = () => {
         default: return;
     }
 
+    if (props.isTarget && newBody) {
+         newBody.label = 'Target';
+         newBody.plugin.isTarget = true;
+         newBody.plugin.originalLabel = props.originalLabel || newBody.label;
+         
+         const applyTargetStyle = (bodyPart) => {
+             bodyPart.render.fillStyle = '#F59E0B';
+         };
+         if (newBody.parts && newBody.parts.length > 1) {
+             newBody.parts.forEach(p => { if(p !== newBody) applyTargetStyle(p); });
+         } else {
+             applyTargetStyle(newBody);
+         }
+    }
+
     if (partsToAdd.length > 0) {
         World.add(engineRef.current.world, partsToAdd);
         if(save && newBody) {
@@ -536,6 +542,39 @@ const App = () => {
              updateSelectionState(newBody);
         }
     }
+  };
+
+  const toggleTarget = () => {
+      if(!selectedBodyId || !engineRef.current) return;
+      const bodies = Matter.Composite.allBodies(engineRef.current.world);
+      const body = bodies.find(b => b.id === selectedBodyId);
+      if(!body) return;
+      
+      bodies.forEach(b => {
+          if(b.label === 'Target') {
+              b.label = b.plugin.originalLabel || 'Box';
+              b.plugin.isTarget = false;
+              const mat = MATERIALS[b.plugin.material || 'wood'];
+              const restoreColor = (p) => p.render.fillStyle = mat.color;
+              if (b.parts.length > 1) b.parts.forEach(p => { if(p!==b) restoreColor(p) });
+              else restoreColor(b);
+          }
+      });
+
+      const wasTarget = selectedProps.isTarget;
+      
+      if (!wasTarget) {
+          body.plugin.originalLabel = body.label; 
+          body.label = 'Target';
+          body.plugin.isTarget = true;
+          
+          const applyTargetStyle = (p) => p.render.fillStyle = '#F59E0B';
+          if (body.parts.length > 1) body.parts.forEach(p => { if(p!==body) applyTargetStyle(p) });
+          else applyTargetStyle(body);
+      }
+
+      updateSelectionState(body);
+      saveHistory();
   };
 
   const deleteSelected = () => {
@@ -555,17 +594,16 @@ const App = () => {
       const body = Matter.Composite.allBodies(engineRef.current.world).find(b => b.id === selectedBodyId);
       if(body) setClipboard({ type: body.plugin.type, ...body.plugin, angle: body.angle });
   };
-  const pasteBody = () => {
+  const pasteBody = () => { // CORRIGIDO: removido 'KZ'
       if(!clipboard) return;
       addBody(clipboard.type, { x: clipboard.x + 20, y: clipboard.y + 20, angle: clipboard.angle, scale: clipboard.scale, material: clipboard.material });
   };
-
+  
   const toggleSimulation = () => {
       if(isPlaying) {
           restoreInitialState();
           trailsRef.current = []; 
           
-          // REMOVER PREGOS (Constraints temporárias)
           const allConstraints = Matter.Composite.allConstraints(engineRef.current.world);
           const pins = allConstraints.filter(c => c.label === 'PinConstraint');
           Matter.World.remove(engineRef.current.world, pins);
@@ -575,19 +613,15 @@ const App = () => {
           engineRef.current.world.gravity.y = 1;
           setSelectedBodyId(null);
           
-          // LÓGICA DO PREGO (PIN) - Conectar ao iniciar
           const bodies = Matter.Composite.allBodies(engineRef.current.world);
           const pins = bodies.filter(b => b.label === 'Pin');
           
           pins.forEach(pin => {
-              // Encontra corpo dinâmico que colide com o prego (bounding box check simples)
               const overlapping = bodies.find(b => 
                   b !== pin && !b.isStatic && Matter.Bounds.overlaps(pin.bounds, b.bounds)
               );
               
               if (overlapping) {
-                  // Cria constraint "grampeando" o objeto no lugar do prego
-                  // Calcula offset local para prender exatamente onde o prego está no objeto
                   const localPoint = Matter.Vector.rotate(
                       Matter.Vector.sub(pin.position, overlapping.position), 
                       -overlapping.angle
@@ -596,8 +630,8 @@ const App = () => {
                   const constraint = Matter.Constraint.create({
                       label: 'PinConstraint',
                       bodyA: overlapping,
-                      pointA: localPoint, // Ponto no objeto
-                      pointB: pin.position, // Ponto fixo no mundo (onde o prego está)
+                      pointA: localPoint, 
+                      pointB: pin.position, 
                       stiffness: 1,
                       length: 0,
                       render: { visible: true, lineWidth: 2, strokeStyle: '#000' }
@@ -620,12 +654,14 @@ const App = () => {
   const saveHistory = () => {
       if(!engineRef.current) return;
       const bodies = Matter.Composite.allBodies(engineRef.current.world);
-      const state = bodies.filter(b => !['Ground', 'Wall', 'Target', 'Ceiling', 'ChainLink'].includes(b.label)).map(b => ({
+      const state = bodies.filter(b => !['Ground', 'Wall', 'Target', 'Ceiling', 'ChainLink'].includes(b.label) || b.label === 'Target').map(b => ({
           type: b.plugin.type,
           x: b.position.x, y: b.position.y,
           angle: b.angle,
           scale: b.plugin.scale || 1,
           material: b.plugin.material || 'wood',
+          isTarget: b.label === 'Target' || b.plugin.isTarget,
+          originalLabel: b.plugin.originalLabel || b.label, 
           props: { ...b.plugin }
       }));
       const newHistory = historyRef.current.slice(0, historyIndexRef.current + 1);
@@ -648,7 +684,6 @@ const App = () => {
           loadHistoryState(historyRef.current[historyIndexRef.current]);
       }
   };
-
   const redo = () => {
       if(historyIndexRef.current < historyRef.current.length - 1) {
           historyIndexRef.current++;
@@ -686,17 +721,9 @@ const App = () => {
 
   const setupLevel1 = () => {
       clearScene(false);
-      const { World, Bodies } = Matter;
-      const target = Bodies.rectangle(renderRef.current.options.width - 100, renderRef.current.options.height - 100, 80, 80, { isStatic: true, label: 'Target', render: { fillStyle: THEMES[currentTheme].accent } });
-      const ramp = Bodies.rectangle(200, 300, 200, 20, { 
-          label: 'Ramp', angle: 0.2, isStatic: false, 
-          frictionAir: 0.3, friction: 0.0, 
-          render: { fillStyle: '#64748b' }, 
-          plugin: { type: 'ramp', isFixedRamp: true, originalFriction: 0.0, originalFrictionAir: 0.001 } 
-      });
-      World.add(engineRef.current.world, [target, ramp]);
       setItemCount(0);
   };
+
   const clearScene = (save = true) => {
       const { World, Composite } = Matter;
       const engine = engineRef.current;
@@ -717,7 +744,6 @@ const App = () => {
       };
       Matter.Render.lookAt(render, newBounds);
   };
-
   const exportProject = () => {
       if(!historyRef.current.length) return;
       const currentState = historyRef.current[historyIndexRef.current];
@@ -799,13 +825,11 @@ const App = () => {
               <ToolButton icon={<Fan size={20} />} label="Ventilador" onClick={() => addBody('fan')} theme={THEMES[currentTheme]} />
               <ToolButton icon={<Scale size={20} />} label="Gangorra" onClick={() => addBody('seesaw')} theme={THEMES[currentTheme]} />
               
-              {/* NOVOS ÍCONES */}
               <ToolButton icon={<CupSoda size={20} />} label="Copo" onClick={() => addBody('cup')} theme={THEMES[currentTheme]} />
               <ToolButton icon={<Milk size={20} />} label="Garrafa" onClick={() => addBody('bottle')} theme={THEMES[currentTheme]} />
               <ToolButton icon={<Settings2 size={20} />} label="Roldana" onClick={() => addBody('pulley')} theme={THEMES[currentTheme]} />
               <ToolButton icon={<LinkIcon size={20} />} label="Corrente" onClick={() => addBody('chain')} theme={THEMES[currentTheme]} />
               
-              {/* FERRAMENTA PREGO */}
               <ToolButton icon={<Pin size={20} />} label="Prego" onClick={() => addBody('pin')} theme={THEMES[currentTheme]} />
             </div>
           </div>
@@ -831,6 +855,18 @@ const App = () => {
                             <div className="flex justify-between mb-1"><label className="text-[9px] font-bold uppercase text-slate-500">Tamanho</label><span className="text-[9px] text-emerald-600">{selectedProps.scale.toFixed(1)}x</span></div>
                             <input type="range" min="0.5" max="3" step="0.1" value={selectedProps.scale} onChange={(e) => updateSelectedBody('scale', parseFloat(e.target.value))} className="w-24 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-500" />
                          </div>
+                         
+                         <div className="flex flex-col items-center justify-center border-l border-r px-4 border-slate-200">
+                            <button 
+                                onClick={toggleTarget} 
+                                className={`p-2 rounded transition-colors ${selectedProps.isTarget ? 'text-orange-500 bg-orange-100' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`} 
+                                title={selectedProps.isTarget ? "Remover Meta" : "Definir como Meta/Alvo"}
+                            >
+                                <Trophy size={20}/>
+                            </button>
+                            <span className="text-[8px] font-bold uppercase mt-0.5 text-slate-400">Meta</span>
+                         </div>
+
                          <div className="flex-1"></div>
                          <div className="flex gap-2">
                             <button onClick={copyBody} className="p-2 rounded hover:bg-slate-100 text-slate-600" title="Copiar"><Copy size={18}/></button>
