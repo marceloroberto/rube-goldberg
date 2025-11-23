@@ -4,12 +4,16 @@ import {
   Play, Square, Circle, Triangle, Trash2, Trophy, RefreshCcw, RotateCcw,
   X, Sliders, Wind, MoveDiagonal, Copy, Clipboard, Fan, Scale,
   Menu, Layout, ZoomIn, ZoomOut, Grid, Undo, Redo, Upload, 
-  Camera, Activity, MousePointer2, Save,
+  Camera, MousePointer2, Save,
   CupSoda, Milk, Settings2, Link as LinkIcon, Pin
 } from 'lucide-react';
 
 /**
- * DESAFIO RUBE GOLDBERG DIGITAL - Versão 12.3 (Correção Final de Syntax Errors)
+ * DESAFIO RUBE GOLDBERG DIGITAL - Versão 12.4
+ * - Categorias na Sidebar
+ * - Remoção de Rastros
+ * - Chão ajustado (+15px)
+ * - Fix Copy/Paste
  */
 
 // --- CONFIGURAÇÕES E CONSTANTES ---
@@ -41,7 +45,6 @@ const App = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const isPlayingRef = useRef(false);
   const [itemCount, setItemCount] = useState(0);
-  const [isToolboxOpen, setIsToolboxOpen] = useState(true);
   const [currentTheme, setCurrentTheme] = useState('lab');
   const [winMessage, setWinMessage] = useState(false);
 
@@ -53,7 +56,6 @@ const App = () => {
   // --- VIEW & TOOLS ---
   const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 });
   const [snapEnabled, setSnapEnabled] = useState(true);
-  const [showTrails, setShowTrails] = useState(false);
   const [showVectors, setShowVectors] = useState(false);
   const [timeScale, setTimeScale] = useState(1);
   
@@ -64,7 +66,6 @@ const App = () => {
   // Refs Auxiliares
   const initialBodies = useRef([]); 
   const draggedBodyId = useRef(null);
-  const trailsRef = useRef([]); 
   const isPanning = useRef(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
   const snapEnabledRef = useRef(snapEnabled);
@@ -93,14 +94,17 @@ const App = () => {
     });
     renderRef.current = render;
 
-    // 3. Paredes e Limites (CHÃO FIXO)
+    // 3. Paredes e Limites (CHÃO FIXO AJUSTADO)
     const viewWidth = sceneRef.current.clientWidth;
     const viewHeight = sceneRef.current.clientHeight;
     const wallThickness = 100;
     const worldWidth = 10000; 
 
+    // AJUSTE: Subimos o chão 15px subtraindo 15 da posição Y
+    const floorY = viewHeight + (wallThickness / 2) - 15;
+
     const walls = [
-       Bodies.rectangle(viewWidth / 2, viewHeight + (wallThickness / 2), worldWidth, wallThickness, { 
+       Bodies.rectangle(viewWidth / 2, floorY, worldWidth, wallThickness, { 
            isStatic: true, 
            label: 'Ground', 
            render: { fillStyle: THEMES[currentTheme].ground } 
@@ -211,10 +215,7 @@ const App = () => {
 
     Events.on(render, 'afterRender', () => {
         const ctx = render.context;
-        if (showTrailsRef.current) {
-            ctx.beginPath(); ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)'; ctx.lineWidth = 3;
-            trailsRef.current.forEach(p => ctx.rect(p.x, p.y, 2, 2)); ctx.stroke();
-        }
+        // REMOVIDO RENDERIZAÇÃO DE TRILHAS
         if (showVectorsRef.current) {
             const bodies = Composite.allBodies(engine.world);
             bodies.forEach(body => {
@@ -237,10 +238,7 @@ const App = () => {
         const bodies = Composite.allBodies(engine.world);
         const constraints = Composite.allConstraints(engine.world);
 
-        if (showTrailsRef.current && isPlayingRef.current && engine.timing.timestamp % 5 === 0) {
-             bodies.forEach(b => { if (b.label === 'Ball') trailsRef.current.push({ x: b.position.x, y: b.position.y }); });
-             if (trailsRef.current.length > 800) trailsRef.current.shift();
-        }
+        // REMOVIDO LOGICA DE CAPTURA DE TRILHAS
 
         if (!isPlayingRef.current) {
             bodies.forEach(body => {
@@ -323,11 +321,9 @@ const App = () => {
     };
   }, []);
 
-  const showTrailsRef = useRef(showTrails);
   const showVectorsRef = useRef(showVectors);
 
   useEffect(() => { snapEnabledRef.current = snapEnabled; }, [snapEnabled]);
-  useEffect(() => { showTrailsRef.current = showTrails; if(!showTrails) trailsRef.current = []; }, [showTrails]);
   useEffect(() => { showVectorsRef.current = showVectors; }, [showVectors]);
   useEffect(() => { 
       isPlayingRef.current = isPlaying; 
@@ -401,7 +397,7 @@ const App = () => {
     const { World, Bodies, Body, Composite, Constraint } = Matter;
     const render = renderRef.current;
     const centerX = render ? (render.bounds.min.x + render.bounds.max.x) / 2 : 400;
-    const centerY = render ? (render.bounds.min.y + render.bounds.max.y) / 2 : 300; // CORRIGIDO AQUI
+    const centerY = render ? (render.bounds.min.y + render.bounds.max.y) / 2 : 300;
     const x = props.x !== undefined ? props.x : centerX;
     const y = props.y !== undefined ? props.y : centerY;
     const angle = props.angle || 0;
@@ -596,20 +592,35 @@ const App = () => {
       }
   };
 
+  // FIX: Copia a posição atual (x,y) para o clipboard
   const copyBody = () => {
       if(!selectedBodyId) return;
       const body = Matter.Composite.allBodies(engineRef.current.world).find(b => b.id === selectedBodyId);
-      if(body) setClipboard({ type: body.plugin.type, ...body.plugin, angle: body.angle });
+      if(body) {
+          setClipboard({ 
+              type: body.plugin.type, 
+              x: body.position.x, 
+              y: body.position.y,
+              ...body.plugin, 
+              angle: body.angle 
+          });
+      }
   };
   const pasteBody = () => {
       if(!clipboard) return;
-      addBody(clipboard.type, { x: clipboard.x + 20, y: clipboard.y + 20, angle: clipboard.angle, scale: clipboard.scale, material: clipboard.material });
+      // Usa o clipboard.x e clipboard.y que agora existem
+      addBody(clipboard.type, { 
+          x: clipboard.x + 20, 
+          y: clipboard.y + 20, 
+          angle: clipboard.angle, 
+          scale: clipboard.scale, 
+          material: clipboard.material 
+      });
   };
   
   const toggleSimulation = () => {
       if(isPlaying) {
           restoreInitialState();
-          trailsRef.current = []; 
           
           const allConstraints = Matter.Composite.allConstraints(engineRef.current.world);
           const pins = allConstraints.filter(c => c.label === 'PinConstraint');
@@ -808,7 +819,7 @@ const App = () => {
               <button onClick={() => handleZoom('out')} className="p-1 rounded hover:bg-black/10" style={{ color: THEMES[currentTheme].text }}><ZoomOut size={16}/></button>
               <button onClick={() => handleZoom('in')} className="p-1 rounded hover:bg-black/10" style={{ color: THEMES[currentTheme].text }}><ZoomIn size={16}/></button>
               <button onClick={() => setSnapEnabled(!snapEnabled)} className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold border ${snapEnabled ? 'bg-blue-100 border-blue-300 text-blue-700' : 'border-transparent hover:bg-black/5 opacity-60'}`} style={!snapEnabled ? { color: THEMES[currentTheme].text } : {}}><Grid size={14}/> Grade</button>
-              <button onClick={() => setShowTrails(!showTrails)} className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold border ${showTrails ? 'bg-purple-100 border-purple-300 text-purple-700' : 'border-transparent hover:bg-black/5 opacity-60'}`} style={!showTrails ? { color: THEMES[currentTheme].text } : {}}><Activity size={14}/> Rastros</button>
+              {/* REMOVIDO BOTÃO RASTROS */}
               <button onClick={() => setShowVectors(!showVectors)} className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold border ${showVectors ? 'bg-emerald-100 border-emerald-300 text-emerald-700' : 'border-transparent hover:bg-black/5 opacity-60'}`} style={!showVectors ? { color: THEMES[currentTheme].text } : {}}><MousePointer2 size={14}/> Vetores</button>
           </div>
           <div className="flex items-center gap-2">
@@ -819,26 +830,47 @@ const App = () => {
       </div>
 
       <div className="flex flex-1 overflow-hidden relative">
+        {/* SIDEBAR ORGANIZADA POR CATEGORIAS */}
         <aside className="w-20 md:w-64 border-r flex flex-col z-10" style={{ backgroundColor: THEMES[currentTheme].bg, borderColor: THEMES[currentTheme].grid }}>
           <div className="p-4 border-b flex-1 overflow-y-auto custom-scrollbar" style={{ borderColor: THEMES[currentTheme].grid }}>
-            <h2 className="text-xs font-bold uppercase tracking-wider mb-3 opacity-50" style={{ color: THEMES[currentTheme].text }}>Peças</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              <ToolButton icon={<Circle size={20} />} label="Bola" onClick={() => addBody('ball')} theme={THEMES[currentTheme]} />
-              <ToolButton icon={<Square size={20} />} label="Caixa" onClick={() => addBody('box')} theme={THEMES[currentTheme]} />
-              <ToolButton icon={<div className="w-1 h-4 bg-red-500 mx-auto"/>} label="Dominó" onClick={() => addBody('domino')} theme={THEMES[currentTheme]} />
-              <ToolButton icon={<Triangle size={20} className="rotate-45"/>} label="Rampa" onClick={() => addBody('ramp')} theme={THEMES[currentTheme]} />
-              <ToolButton icon={<MoveDiagonal size={20} />} label="Trampolim" onClick={() => addBody('trampoline')} theme={THEMES[currentTheme]} />
-              <ToolButton icon={<Wind size={20} />} label="Spinner" onClick={() => addBody('spinner')} theme={THEMES[currentTheme]} />
-              <ToolButton icon={<Fan size={20} />} label="Ventilador" onClick={() => addBody('fan')} theme={THEMES[currentTheme]} />
-              <ToolButton icon={<Scale size={20} />} label="Gangorra" onClick={() => addBody('seesaw')} theme={THEMES[currentTheme]} />
-              
-              <ToolButton icon={<CupSoda size={20} />} label="Copo" onClick={() => addBody('cup')} theme={THEMES[currentTheme]} />
-              <ToolButton icon={<Milk size={20} />} label="Garrafa" onClick={() => addBody('bottle')} theme={THEMES[currentTheme]} />
-              <ToolButton icon={<Settings2 size={20} />} label="Roldana" onClick={() => addBody('pulley')} theme={THEMES[currentTheme]} />
-              <ToolButton icon={<LinkIcon size={20} />} label="Corrente" onClick={() => addBody('chain')} theme={THEMES[currentTheme]} />
-              
-              <ToolButton icon={<Pin size={20} />} label="Prego" onClick={() => addBody('pin')} theme={THEMES[currentTheme]} />
+            
+            <div className="mb-4">
+                <h2 className="text-xs font-bold uppercase tracking-wider mb-2 opacity-50" style={{ color: THEMES[currentTheme].text }}>Formas</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <ToolButton icon={<Circle size={20} />} label="Bola" onClick={() => addBody('ball')} theme={THEMES[currentTheme]} />
+                  <ToolButton icon={<Square size={20} />} label="Caixa" onClick={() => addBody('box')} theme={THEMES[currentTheme]} />
+                  <ToolButton icon={<div className="w-1 h-4 bg-red-500 mx-auto"/>} label="Dominó" onClick={() => addBody('domino')} theme={THEMES[currentTheme]} />
+                  <ToolButton icon={<Triangle size={20} className="rotate-45"/>} label="Rampa" onClick={() => addBody('ramp')} theme={THEMES[currentTheme]} />
+                </div>
             </div>
+
+            <div className="mb-4">
+                <h2 className="text-xs font-bold uppercase tracking-wider mb-2 opacity-50" style={{ color: THEMES[currentTheme].text }}>Mecanismos</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <ToolButton icon={<MoveDiagonal size={20} />} label="Trampolim" onClick={() => addBody('trampoline')} theme={THEMES[currentTheme]} />
+                  <ToolButton icon={<Wind size={20} />} label="Spinner" onClick={() => addBody('spinner')} theme={THEMES[currentTheme]} />
+                  <ToolButton icon={<Fan size={20} />} label="Ventilador" onClick={() => addBody('fan')} theme={THEMES[currentTheme]} />
+                  <ToolButton icon={<Scale size={20} />} label="Gangorra" onClick={() => addBody('seesaw')} theme={THEMES[currentTheme]} />
+                  <ToolButton icon={<Settings2 size={20} />} label="Roldana" onClick={() => addBody('pulley')} theme={THEMES[currentTheme]} />
+                  <ToolButton icon={<LinkIcon size={20} />} label="Corrente" onClick={() => addBody('chain')} theme={THEMES[currentTheme]} />
+                </div>
+            </div>
+
+            <div className="mb-4">
+                <h2 className="text-xs font-bold uppercase tracking-wider mb-2 opacity-50" style={{ color: THEMES[currentTheme].text }}>Objetos</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <ToolButton icon={<CupSoda size={20} />} label="Copo" onClick={() => addBody('cup')} theme={THEMES[currentTheme]} />
+                  <ToolButton icon={<Milk size={20} />} label="Garrafa" onClick={() => addBody('bottle')} theme={THEMES[currentTheme]} />
+                </div>
+            </div>
+
+            <div>
+                <h2 className="text-xs font-bold uppercase tracking-wider mb-2 opacity-50" style={{ color: THEMES[currentTheme].text }}>Ferramentas</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                   <ToolButton icon={<Pin size={20} />} label="Prego" onClick={() => addBody('pin')} theme={THEMES[currentTheme]} />
+                </div>
+            </div>
+
           </div>
         </aside>
 
